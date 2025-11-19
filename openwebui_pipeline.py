@@ -5,7 +5,7 @@ date: 2024-05-30
 version: 1.0
 license: MIT
 description: A pipeline for retrieving relevant information from a knowledge base using the Llama Index library with Ollama embeddings.
-requirements: llama-index, llama-index-llms-ollama, llama-index-embeddings-ollama
+requirements: os, requests
 """
 
 from typing import List, Union, Generator, Iterator
@@ -75,8 +75,8 @@ class Pipeline:
     #     response = query_engine.query(user_message)
 
     #     return response.response_gen
-    
-    def pipe(self,user_message: str) -> Union[str, Generator, Iterator]:
+      
+    def pipe(self, user_message: str, model_id: str, messages: List[dict], body: dict) -> Union[str, Generator, Iterator]:
         url = f"{self.valves.BACKEND_URL}/kb/generate"
         
         data = {
