@@ -38,47 +38,14 @@ class Pipeline:
         )
 
     async def on_startup(self):
-        # from llama_index.embeddings.ollama import OllamaEmbedding
-        # from llama_index.llms.ollama import Ollama
-        # from llama_index.core import Settings, VectorStoreIndex, SimpleDirectoryReader
-
-        # Settings.embed_model = OllamaEmbedding(
-        #     model_name=self.valves.LLAMAINDEX_EMBEDDING_MODEL_NAME,
-        #     base_url=self.valves.LLAMAINDEX_OLLAMA_BASE_URL,
-        # )
-        # Settings.llm = Ollama(
-        #     model=self.valves.LLAMAINDEX_MODEL_NAME,
-        #     base_url=self.valves.LLAMAINDEX_OLLAMA_BASE_URL,
-        # )
-
-        # # This function is called when the server is started.
-        # global documents, index
-
-        # self.documents = SimpleDirectoryReader("/app/backend/data").load_data()
-        # self.index = VectorStoreIndex.from_documents(self.documents)
-        pass
+        print ("updated genrator")
 
     async def on_shutdown(self):
         # This function is called when the server is stopped.
         pass
-
-    # def pipe(
-    #     self, user_message: str, model_id: str, messages: List[dict], body: dict
-    # ) -> Union[str, Generator, Iterator]:
-    #     # This is where you can add your custom RAG pipeline.
-    #     # Typically, you would retrieve relevant information from your knowledge base and synthesize it to generate a response.
-
-    #     print(messages)
-    #     print(user_message)
-
-    #     query_engine = self.index.as_query_engine(streaming=True)
-    #     response = query_engine.query(user_message)
-
-    #     return response.response_gen
       
     def pipe(self, user_message: str, model_id: str, messages: List[dict], body: dict) -> Union[str, Generator, Iterator]:
         url = f"{self.valves.BACKEND_URL}/kb/generate"
-        
         data = {
             "provider": self.valves.PROVIDER,
             "model_name": self.valves.MODEL_NAME,
@@ -89,26 +56,24 @@ class Pipeline:
         
         try:
             print(f"Sending request to {url}...")
-            response = requests.post(url, data=data)
+            response = requests.post(url, data=data,stream=True)
             
             print(f"Response status: {response.status_code}")
-            print(f"Response headers: {dict(response.headers)}")
             
             if response.status_code == 200:
-                if self.valves.RESPONSE_FORMAT == "json":
-                    result = response.json()
-                    print("\nJSON Response:")
-                    print(result)
-                    return result
-                else:
-                    result = response.text
-                    print("\nText Response:")
-                    print(result)
-                    return result
+                # For text streaming, yield chunks as they come
+                full_response = ""
+                chunk=""
+                for chunk in response.iter_content(decode_unicode=True, chunk_size=1024):
+                    if chunk:
+                        full_response += chunk
+                        yield chunk
+                print("\n\nStreaming complete")
+                print({"openui_user_message:":user_message,"openui_messages":messages,"openui_body":body})
             else:
                 print(f"Error: {response.status_code}")
                 print(f"Error message: {response.text}")
-                return None
+                return response.text
         except Exception as e:
             print(f"Exception occurred: {str(e)}")
-            return None
+            yield f"Exception occurred: {str(e)}"
